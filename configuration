@@ -1,0 +1,26 @@
+#!/bin/bash
+
+echo Define envoriment
+
+IA_FOLDER="$HOME/.es_extra"
+IA_FILE="$HOME/.es_extra/ia-py2"
+
+echo Install internet-archive script
+
+[ -d $IA_FOLDER ] || mkdir $IA_FOLDER
+
+if [ ! -f $IA_FILE ]; then
+ echo download ia-py2
+ curl -LOs https://archive.org/download/ia-pex/ia-py2
+ mv ia-py2 $IA_FILE
+ chmod +x $IA_FILE
+fi
+
+CONFIG="IA="\"$IA_FILE"\"
+
+BUFF=3
+RESERVE_MEMORY=20
+
+"
+echo Create file defualt.conf
+echo "$CONFIG" | tee $IA_FOLDER/default.conf > /dev/null

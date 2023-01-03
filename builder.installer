@@ -1,0 +1,58 @@
+#!/bin/bash
+
+OUTFILE=dist/installer.sh         # Name of the file to generate.
+
+add_script(){
+
+    local TITLE=$1
+    local LOCAL_PATH=$2
+    local CLIENT_PATH=$3
+
+    local FILE_SCRIPT_NAME=$(basename $LOCAL_PATH)
+
+    echo "echo \"$TITLE\"" >> $OUTFILE
+    echo "" >> $OUTFILE
+    echo "(" >> $OUTFILE
+    echo "cat <<'"${FILE_SCRIPT_NAME^^}"_SCRIPT'" >> $OUTFILE
+        cat $LOCAL_PATH >> $OUTFILE
+    echo "" >> $OUTFILE
+    echo ''${FILE_SCRIPT_NAME^^}'_SCRIPT' >> $OUTFILE
+    echo ") > $CLIENT_PATH" >> $OUTFILE
+    echo "" >> $OUTFILE
+}
+
+mode_exec_file(){
+
+    local PATH_SCRIPT=$1
+    local FILE_SCRIPT_NAME=$(basename $PATH_SCRIPT)
+
+    echo "" >> $OUTFILE
+    echo "if [ -f \"$PATH_SCRIPT\" ]" >> $OUTFILE
+    echo "then" >> $OUTFILE
+    echo "  chmod +x $PATH_SCRIPT" >> $OUTFILE
+    echo "  # Make \"$FILE_SCRIPT_NAME\" file executable." >> $OUTFILE
+    echo "else" >> $OUTFILE
+    echo "  echo \"Problem in creating file: \"$PATH_SCRIPT\"\"" >> $OUTFILE
+    echo "fi" >> $OUTFILE
+    echo "" >> $OUTFILE
+}
+
+[ -d dist ] || mkdir dist
+
+ROOT_PATH="\$HOME/.es_extra"
+
+# Create configuration
+echo "#!/bin/bash" > $OUTFILE
+    sed '1d' configuration >> $OUTFILE
+echo "" >> $OUTFILE
+echo "" >> $OUTFILE
+
+# Create download-list
+add_script "Criando download-list" "download-list" "$ROOT_PATH/download-list"
+add_script "Criando create-list" "create-list" "$ROOT_PATH/create-list"
+
+mode_exec_file "$ROOT_PATH/download-list"
+mode_exec_file "$ROOT_PATH/create-list"
+
+echo "exit 0" >> $OUTFILE
+

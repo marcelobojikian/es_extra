@@ -1,0 +1,125 @@
+#!/bin/bash
+. $HOME/.es_extra/default.conf
+
+### JSON FUNCTION ###
+function jsonProcessWithIdentifier(){
+    echo "$1" | jq '.files | map({name,size})' | jq '.[] += {"identifier": "'"$2"'"} | sort_by(.name)'    
+}
+function jsonJoinFiles(){
+    jq -s '[.[0], .[1] | .[]]' "$1" "$2"
+}
+function jsonRemoveRepeatedAndSizeNull(){
+    cat "$1" | jq '[. | group_by(.name) | map(.[0] + {"count": length } | select(.count == 1 and .size != null)) | .[] | del(.count)]'
+}
+
+function jsonLength(){
+    cat "$1" | jq length
+}
+#####################
+
+create(){
+
+    local IDENTIFIER=$1
+    local FILE_JSON=$2
+
+    [ -z "$2" ] && FILE_JSON="$IDENTIFIER.json"
+    local JSON=$(find "$FILE_JSON" -maxdepth 1 -type f 2>/dev/null)
+    
+    if [ -f "$JSON" ]; then
+        local NAME=$(basename $FILE_JSON)
+        local COUNT=$(cat "$FILE_JSON" | jq '.[] | select(.identifier == "'"$IDENTIFIER"'")' | jq -s length)
+        echo "Arquivo ja existe: $NAME -> [$IDENTIFIER] - $COUNT jogos"
+    else
+        local RESULT=$($IA metadata $IDENTIFIER)
+        if [ $? -eq 0 ] && [ "$RESULT" != "{}" ]; then
+            jsonProcessWithIdentifier "$RESULT" $IDENTIFIER > "$FILE_JSON"
+        else
+            echo "Identifier \"$IDENTIFIER\" not found"
+            echo "[]" > "$FILE_JSON"
+        fi
+    fi
+
+}
+
+join(){
+
+    local FIRST_FILE=$1
+    local SECOND_FILE=$2
+
+    local TEMP="/tmp/create-list-join-file.json"
+
+    jsonJoinFiles "$FIRST_FILE" "$SECOND_FILE" > $TEMP
+
+    jsonRemoveRepeatedAndSizeNull $TEMP > $FIRST_FILE
+
+    rm $TEMP
+
+}
+
+create_list(){
+
+    local DIR_NAME=$(dirname $2)
+    read -a LIST_IDENTIFIERS <<< "${1}"
+    
+    for identifier in  "${LIST_IDENTIFIERS[@]}"
+    do
+        create "$identifier" "$DIR_NAME/$identifier.json"
+    done    
+
+}
+
+join_lists(){
+
+    local FILE_JSON=$2
+    local DIR_NAME=$(dirname $FILE_JSON)
+    read -a LIST_IDENTIFIERS <<< "${1}"
+
+    local JOINED_FILE="$DIR_NAME/${LIST_IDENTIFIERS[0]}.json"
+    jsonRemoveRepeatedAndSizeNull $JOINED_FILE > $FILE_JSON
+    rm "$JOINED_FILE"
+
+    local INDEX_NEXT=1
+    local CURR_LIST=${LIST_IDENTIFIERS[$INDEX_NEXT]}
+    for ident in "${LIST_IDENTIFIERS[@]}"
+    do
+        [ -z "$CURR_LIST" ] && exit 0
+
+        local NEXT_JOIN_FILE="$DIR_NAME/$CURR_LIST.json"
+
+        join "$FILE_JSON" "$NEXT_JOIN_FILE"
+
+        rm "$NEXT_JOIN_FILE"
+
+        INDEX_NEXT=$(expr $INDEX_NEXT + 1)
+        CURR_LIST=${LIST_IDENTIFIERS[$INDEX_NEXT]}
+    done
+
+}
+
+[ -z "$1" ] && exit 1
+
+if [ -z "$2" ]; then
+    echo "Informe o arquivo JSON de destino"
+    exit 1
+fi
+
+IDENTIFIER=$1
+SOURCE=$2
+
+if [ -f "$SOURCE" ]; then
+    NAME=$(basename $SOURCE)
+    COUNT=$(jsonLength "$SOURCE")
+    echo "Arquivo ja existe: $NAME -> $COUNT jogos"
+    exit 1
+fi
+
+create_list "$IDENTIFIER" "$SOURCE"
+join_lists "$IDENTIFIER" "$SOURCE"
+
+exit 0
+
+# PS2
+PS2="$LIST_PATH/ps2"
+[ -d "$PS2" ] || mkdir "$PS2"
+
+#bash ../create-list "ps2usaredump1 httpsarchive.orgdetailsps2usaredump3 ps2usaredump1_20200816_1458" result.json
