@@ -2,35 +2,35 @@
 . $HOME/.es_extra/default.conf
 
 ### MEMORY FUNCTION ###
-function memoryAvailable(){
+function memoryAvailable() {
     df "$HOME" | awk 'NR==2 { printf "%.f", $4*1024 }'
 }
 
-function show(){
+function show() {
     echo $1 | awk '{printf  "'"$2"'\n", '$3' }'
 }
 
-function show_mem(){
+function show_mem() {
     case $3 in
-        "mb") echo $1 | awk '{printf  "'"$2"': %.3f MB \n", $1/1024/1024 }' ;; # MegaBytes
-        *) echo $1 | awk '{printf  "'"$2"': %.3f GB \n", $1/1024/1024/1024 }' ;; # GigaBytes
+    "mb") echo $1 | awk '{printf  "'"$2"': %.3f MB \n", $1/1024/1024 }' ;;   # MegaBytes
+    *) echo $1 | awk '{printf  "'"$2"': %.3f GB \n", $1/1024/1024/1024 }' ;; # GigaBytes
     esac
 }
 
-function isMemoryAvailable(){
+function isMemoryAvailable() {
     local GARANTEE=$(expr $2 \* 1024 \* 1024 \* 1024)
     local RESULT=$(expr $(memoryAvailable) - $1)
     [[ $RESULT -gt $GARANTEE ]] && echo "true" || echo "false"
 }
 
-function men_debug(){
+function men_debug() {
 
     local USED=$1
     local GARANTEE=$(expr $2 \* 1024 \* 1024 \* 1024)
     local SYZE_TYPE=$3
 
     local RESULT=$(expr $(memoryAvailable) - $USED)
-    
+
     show_mem "$(memoryAvailable)" "Atualemnte tem" "$SYZE_TYPE"
     show_mem "$USED" "Sera usado" "$SYZE_TYPE"
     show_mem "$RESULT" "Tera disponivel" "$SYZE_TYPE"
@@ -47,7 +47,7 @@ function men_debug(){
 
 }
 
-function men_info(){
+function men_info() {
 
     local USED=$1
     local GARANTEE=$(expr $2 \* 1024 \* 1024 \* 1024)
@@ -67,20 +67,20 @@ function men_info(){
 #######################
 
 ### JSON FUNCTION ###
-function jsonSizeByName(){
-	cat "$1" | jq '.[] | select(.name == "'"$2"'").size | tonumber'
+function jsonSizeByName() {
+    cat "$1" | jq '.[] | select(.name == "'"$2"'").size | tonumber'
 }
 
-function jsonSizeByBuffer(){
-	cat "$1"  | jq '.[:'"$2"']' | jq '[.[].size | tonumber] | add'
+function jsonSizeByBuffer() {
+    cat "$1" | jq '.[:'"$2"']' | jq '[.[].size | tonumber] | add'
 }
 
-function jsonIdentifierByName(){
+function jsonIdentifierByName() {
     cat "$1" | jq '.[] | select(.name == "'"$2"'").identifier'
 }
 
-function jsonListNames(){
-	cat "$1" | jq -r '.[].name'
+function jsonListNames() {
+    cat "$1" | jq -r '.[].name'
 }
 #####################
 
@@ -94,32 +94,32 @@ SOURCE=$2
 PID_BUFFER=()
 GAME_BUFFER=()
 
-pid_index(){
+pid_index() {
     local PID_REFF=$1
     for array_idx in "${!PID_BUFFER[@]}"; do
         array_item=${PID_BUFFER[$array_idx]}
-        if [[ $array_item = "$PID_REFF" ]] ; then
+        if [[ $array_item = "$PID_REFF" ]]; then
             echo $array_idx
         fi
     done
 }
 
-done_downloaded(){
-    { \
-    find "$SOURCE" -maxdepth 1 -type f -exec basename {} \; | sort & \
-    jsonListNames "$FILE_JSON"; \
+done_downloaded() {
+    {
+        find "$SOURCE" -maxdepth 1 -type f -exec basename {} \; | sort &
+        jsonListNames "$FILE_JSON"
     } | sort | uniq -d
 }
 
-await_download(){
-    { \
-    done_downloaded & \
-    jsonListNames "$FILE_JSON"; \
+await_download() {
+    {
+        done_downloaded &
+        jsonListNames "$FILE_JSON"
     } | sort | uniq -u
 }
 
-download(){
-    
+download() {
+
     local GAME=$1
     local INDEX_BUFF=$2
     local REPOSITORY=$3
@@ -132,10 +132,9 @@ download(){
 
 }
 
-finish_buffer(){
-    for i in "${PID_BUFFER[@]}"
-    do
-        if ps -o pid | grep $i > /dev/null ; then
+finish_buffer() {
+    for i in "${PID_BUFFER[@]}"; do
+        if ps -o pid | grep $i >/dev/null; then
             wait $i
             local PID_IDX=$(pid_index $i)
             local GAME=${GAME_BUFFER[$PID_IDX]}
@@ -145,7 +144,7 @@ finish_buffer(){
     done
 }
 
-update_game_size(){
+update_game_size() {
 
     local GAME=$1
     local SIZE=$2
@@ -154,25 +153,24 @@ update_game_size(){
     [ -z "$SIZE" ] && exit 1
 
     GAME_FILE="$SOURCE/$GAME"
-    if [ -f "$GAME_FILE" ]
-    then
+    if [ -f "$GAME_FILE" ]; then
 
         GAME_SIZE=$(stat "$GAME_FILE" | grep Size | awk '{ print $2 }')
-        if [[ $GAME_SIZE == $SIZE ]] ; then
+        if [[ $GAME_SIZE == $SIZE ]]; then
             echo "[DONE] $GAME_FILE"
         else
             echo "[FAIL] $GAME_FILE"
             case $ACTION_FAIL in
-                "rm") rm "$GAME_FILE" ;;
-                *)  mv "$GAME_FILE" "$SOURCE/fail.$GAME" ;;
-            esac                
+            "rm") rm "$GAME_FILE" ;;
+            *) mv "$GAME_FILE" "$SOURCE/fail.$GAME" ;;
+            esac
         fi
 
     fi
 
 }
 
-clean_source(){
+clean_source() {
 
     local JSON_FILE=$1
     local ACTION_FAIL=$2
@@ -180,16 +178,16 @@ clean_source(){
     local RESULT=$(jsonListNames "$JSON_FILE")
     [ -z "$RESULT" ] && exit 0
 
-    while IFS= read -r GAME; do 
+    while IFS= read -r GAME; do
 
         local SIZE=$(jsonSizeByName "$JSON_FILE" "$GAME")
         update_game_size "$GAME" "$SIZE" $ACTION_FAIL
 
-    done <<< "$RESULT"
+    done <<<"$RESULT"
 
 }
 
-load_buffer_and_start_download(){
+load_buffer_and_start_download() {
 
     local JSON_FILE=$1
     local SIZE_BUFFER=$2
@@ -200,58 +198,58 @@ load_buffer_and_start_download(){
     [ -z "$RESULT" ] && exit 0
 
     local INDEX=0
-    while IFS= read -r GAME; do 
+    while IFS= read -r GAME; do
 
         REPOSITORY=$(jsonIdentifierByName "$JSON_FILE" "$GAME")
 
         if [[ $(isMemoryAvailable $MEM_WILL_USED $RESERVE_MEMORY) == "true" ]]; then
             [[ "5000000" -gt $(memoryAvailable) ]] && men_info "$MEM_WILL_USED" "$RESERVE_MEMORY"
             download "$GAME" "$INDEX" "$REPOSITORY"
-        else 
+        else
             men_info "$MEM_WILL_USED" "$RESERVE_MEMORY"
             finish_buffer
             exit 1
         fi
 
-    INDEX=$(expr $INDEX + 1)
-    done <<< "$RESULT"
+        INDEX=$(expr $INDEX + 1)
+    done <<<"$RESULT"
 }
 
-update_game(){
+update_game() {
 
     local JSON_FILE=$1
     local PID_IDX=$(pid_index $2)
     local ACTION_FAIL=$3
-                
-    if [ -z "$PID_IDX" ]; then
-        echo "Erro ao buscar o index do PID $2"
-        exit 1
-    fi
 
-    local GAME=${GAME_BUFFER[$PID_IDX]}
-    local SIZE=$(jsonSizeByName "$JSON_FILE" "$GAME")
-    update_game_size "$GAME" "$SIZE" $ACTION_FAIL
+    if [ ! -z "$PID_IDX" ]; then
+
+        local GAME=${GAME_BUFFER[$PID_IDX]}
+        local SIZE=$(jsonSizeByName "$JSON_FILE" "$GAME")
+        update_game_size "$GAME" "$SIZE" $ACTION_FAIL
+
+    else
+        echo "Erro ao buscar o index do PID $2"
+    fi
 
 }
 
-aloc_new_game(){
+aloc_new_game() {
 
     local JSON_FILE=$1
     local SIZE_BUFFER=$2
-    
+
     local RESULT=$(await_download | head -$SIZE_BUFFER)
     if [ -z "$RESULT" ]; then
         finish_buffer
         exit 0
     fi
-    
-    while IFS= read -r GAME; do 
-            
-        for i in "${PID_BUFFER[@]}"
-        do         
-            if ! ps -o pid | grep $i > /dev/null ; then
 
-                local PID_IDX=$(pid_index $i)                
+    while IFS= read -r GAME; do
+
+        for i in "${PID_BUFFER[@]}"; do
+            if ! ps -o pid | grep $i >/dev/null; then
+
+                local PID_IDX=$(pid_index $i)
                 local REPOSITORY=$(jsonIdentifierByName "$JSON_FILE" "$GAME")
                 local MEM_WILL_USED=$(jsonSizeByBuffer "$JSON_FILE" "$BUFF")
 
@@ -260,7 +258,7 @@ aloc_new_game(){
                         men_info "$MEM_WILL_USED" "$RESERVE_MEMORY"
                     fi
                     download "$GAME" "$PID_IDX" "$REPOSITORY"
-                else 
+                else
                     men_info "$MEM_WILL_USED" "$RESERVE_MEMORY"
                     finish_buffer
                     exit 1
@@ -269,7 +267,7 @@ aloc_new_game(){
             fi
         done
 
-    done <<< "$RESULT"
+    done <<<"$RESULT"
 
 }
 
@@ -277,18 +275,16 @@ clean_source "$FILE_JSON" "rm"
 
 load_buffer_and_start_download "$FILE_JSON" "$BUFF"
 
-while :
-do
+while :; do
 
-    for process in "${PID_BUFFER[@]}"
-    do
+    for process in "${PID_BUFFER[@]}"; do
 
-        if ! ps -o pid | grep $process > /dev/null ; then        
+        if ! ps -o pid | grep $process >/dev/null; then
             update_game "$FILE_JSON" "$process" "rm"
             aloc_new_game "$FILE_JSON" "$BUFF"
         fi
         sleep 2
 
     done
-   sleep 5
+    sleep 5
 done
